@@ -64,7 +64,7 @@ class ST_Material:
 
     @check_units
     def __init__(
-        self, name, rho, E=None, G_s=None, Poisson=None, specific_heat = None, thermal_conductivity = None, color="#525252", **kwargs
+        self, name, rho, E=None, G_s=None, Poisson=None, color="#525252", **kwargs
     ):
         self.name = str(name)
         if " " in name:
