@@ -7,7 +7,7 @@ import numpy as np
 from ross.units import check_units
 import ross as rs
 
-__all__ = ["ID_BearingElement"]
+__all__ = ["ST_ID_BearingElement"]
 
 class ST_ID_BearingElement:
     """Random bearing element.
