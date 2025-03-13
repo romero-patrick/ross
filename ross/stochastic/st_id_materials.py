@@ -52,6 +52,8 @@ class ST_ID_Material:
         E = None,
         G_s = None,
         Poisson = None,
+        specific_heat = None,
+        thermal_conductivity = None,
         color = '#525252',
         to_identify = None
     ):
@@ -74,6 +76,8 @@ class ST_ID_Material:
             E = E,
             G_s = G_s,
             Poisson = Poisson,
+            specific_heat = specific_heat,
+            thermal_conductivity = thermal_conductivity,
             color = color
         )
 
