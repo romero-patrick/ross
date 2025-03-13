@@ -10,4 +10,4 @@ from .st_id_point_mass import *
 from .st_id_disk_element import *
 from .st_id_materials import *
 from .st_id_rotor import *
-from .st_id_shaft_element *
+from .st_id_shaft_element import *
