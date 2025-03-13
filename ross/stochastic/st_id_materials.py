@@ -52,8 +52,8 @@ class ST_ID_Material:
         E = None,
         G_s = None,
         Poisson = None,
-        specific_heat = None,
-        thermal_conductivity = None,
+        specific_heat = 0.0,
+        thermal_conductivity = 0.0,
         color = '#525252',
         to_identify = None
     ):
@@ -170,7 +170,8 @@ class ST_ID_Material:
         return (
             f"Material"
             f"(name={self.attribute_dict['name']}, rho={self.attribute_dict['rho']}, G_s={self.attribute_dict['G_s']},"
-            f"E={self.attribute_dict['E']}, color={self.attribute_dict['color']!r})"
+            f"E={self.attribute_dict['E']}, Specific_heat = {self.attribute_dict['specific_heat']}, 'Thermal_conductivity = {self.attribute_dict['thermal_conductivity']}']"
+            f"color={self.attribute_dict['color']!r})"
         )
 
     def generator(self):
