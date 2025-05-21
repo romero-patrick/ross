@@ -6,10 +6,11 @@ This module creates an instance of random material for stochastic analysis.
 import numpy as np
 from ross.units import check_units
 import ross as rs
+from ross import Material
 
 __all__ = ["ST_ID_Material"]
 
-class ST_ID_Material:
+class ST_ID_Material(Material):
     """Material used on shaft and disks.
 
     Class used to create a stochastic material and define its properties.
@@ -102,6 +103,15 @@ class ST_ID_Material:
                 self.param_values[params] = value
                 self.attribute_dict[params] = value
 
+        super().__init__(attribute_dict['name'],
+                         attribute_dict['rho'],
+                         attribute_dict['E'],
+                         attribute_dict['G_s'],
+                         attribute_dict['Poisson'],
+                         attribute_dict['specific_heat'],
+                         attribute_dict['thermal_conductivity'],
+                         attribute_dict['color'])
+
     def __getitem__(self, key):    
             """Return the value for a given key from attribute_dict.
 
@@ -165,14 +175,6 @@ class ST_ID_Material:
             self.attribute_dict[key] = value        
             if key in self.param_values:
                 self.param_values[key] = value
-
-    def __repr__(self):
-        return (
-            f"Material"
-            f"(name={self.attribute_dict['name']}, rho={self.attribute_dict['rho']}, G_s={self.attribute_dict['G_s']},"
-            f"E={self.attribute_dict['E']}, Specific_heat = {self.attribute_dict['specific_heat']}, 'Thermal_conductivity = {self.attribute_dict['thermal_conductivity']}']"
-            f"color={self.attribute_dict['color']!r})"
-        )
 
     def generator(self):
 
