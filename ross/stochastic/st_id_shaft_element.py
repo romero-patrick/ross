@@ -6,10 +6,11 @@ This module creates an instance of random shaft for stochastic analysis.
 import numpy as np
 from ross.units import check_units
 import ross as rs
+from ross import ShaftElement
 
 __all__ = ["ST_ID_ShaftElement"]
 
-class ST_ID_ShaftElement:
+class ST_ID_ShaftElement(ShaftElement):
     """Creates an object containing a random instances of
     ShaftElement.
 
@@ -81,15 +82,15 @@ class ST_ID_ShaftElement:
             odr = None,
             material = None,
             n = None,
-            axial_force = 0,
-            torque = 0,
+            axial_force = 0.0,
+            torque = 0.0,
             shear_effects = True,
             rotary_inertia = True,
             gyroscopic = True,
             shear_method_calc = 'cowper',
             tag = None,
-            alpha = 0,
-            beta = 0,
+            alpha = 0.0,
+            beta = 0.0,
             to_identify = None
     ):
         
@@ -116,7 +117,7 @@ class ST_ID_ShaftElement:
         self.to_identify = to_identify
         self.interval_params = {}
         self.param_values = {}
-        self.material = material
+        self.id_material = material
 
         if to_identify != None:
             for params in self.to_identify:
@@ -129,13 +130,30 @@ class ST_ID_ShaftElement:
                 self.param_values[params] = value
                 self.attribute_dict[params] = value
 
-        if type(self.material) != rs.materials.Material:
-            self.attribute_dict['material'] = self.material.new_material()
-            if self.material.to_identify != None:
+        if type(self.id_material) != rs.materials.Material:
+            self.attribute_dict['material'] = self.id_material.new_material()
+            if self.id_material.to_identify != None:
                 if self.to_identify == None:
                     self.to_identify = ['material_id']
                 else:
                     self.to_identify.append('material_id')
+
+        super().__init__(attribute_dict['L'],
+                         attribute_dict['idl'],
+                         attribute_dict['odl'],
+                         attribute_dict['idr'],
+                         attribute_dict['odr'],
+                         attribute_dict['material'],
+                         attribute_dict['n'],
+                         attribute_dict['axial_foce'],
+                         attribute_dict['torque'],
+                         attribute_dict['shear_effects'],
+                         attribute_dict['rotary_inertia'],
+                         attribute_dict['gyroscopic'],
+                         attribute_dict['shear_method_calc'],
+                         attribute_dict['tag'],
+                         attribute_dict['alpha'],
+                         attribute_dict['beta'])
 
     def __getitem__(self, key):
             
@@ -205,16 +223,6 @@ class ST_ID_ShaftElement:
             if key in self.param_values:
                 self.param_values[key] = value
 
-    def __repr__(self):
-         return (
-            f"{self.__class__.__name__}"
-            f"(L={self.attribute_dict['L']:{0}.{5}}, idl={self.attribute_dict['idl']:{0}.{5}}, "
-            f"idr={self.attribute_dict['idr']:{0}.{5}}, odl={self.attribute_dict['odl']:{0}.{5}},  "
-            f"odr={self.attribute_dict['odr']:{0}.{5}}, material={self.material.name!r}, "
-            f"alpha={self.attribute_dict['alpha']:{0}.{5}}, beta={self.attribute_dict['beta']:{0}.{5}},  "
-            f"n={self.attribute_dict['n']})"
-        )
-
     def generator(self):
 
         args = []
@@ -230,7 +238,7 @@ class ST_ID_ShaftElement:
     
     def new_shaft(self):
 
-        self.attribute_dict['material'] = self.material.new_material()
+        self.attribute_dict['material'] = self.id_material.new_material()
 
         for params, value in self.param_values.items():
                 self.attribute_dict[params] = value
