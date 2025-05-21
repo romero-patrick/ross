@@ -6,10 +6,11 @@ This module creates an instance of random bearing for stochastic analysis.
 import numpy as np
 from ross.units import check_units
 import ross as rs
+from ross import BearingElement
 
 __all__ = ["ST_ID_BearingElement"]
 
-class ST_ID_BearingElement:
+class ST_ID_BearingElement(BearingElement):
     """Random bearing element.
 
     Creates an object containing a random instances of
@@ -83,25 +84,25 @@ class ST_ID_BearingElement:
         n,
         kxx,
         cxx,
-        mxx=None,
+        mxx=0,
         kyy=None,
+        kxy=0,
+        kyx=0,
         cyy=None,
+        cxy=0,
+        cyx=0,
         myy=None,
-        kxy=0.0,
-        kyx=0.0,
-        kzz=0.0,
-        cxy=0.0,
-        cyx=0.0,
-        czz=0.0,
-        mxy=0.0,
-        myx=0.0,
-        mzz=0.0,
+        mxy=0,
+        myx=0,
+        kzz=0,
+        czz=0,
+        mzz=0,
         frequency=None,
         tag=None,
         n_link=None,
         scale_factor=1,
         color="#355d7a",
-        to_identify=None,
+        to_identify = None,
     ):
                
         
@@ -109,23 +110,23 @@ class ST_ID_BearingElement:
             n = n,
             kxx = kxx,
             cxx = cxx,
-            mxx= mxx,
-            kyy= kyy,
-            cyy= cyy,
-            myy= myy,
-            kxy= kxy,
-            kyx= kyx,
-            kzz= kzz,
-            cxy= cxy,
-            cyx= cyx,
-            czz= czz,
-            mxy= mxy,
-            myx= myx,
-            mzz= mzz,
-            frequency= frequency,
-            tag= tag,
-            n_link= n_link,
-            scale_factor= scale_factor,
+            mxx = mxx,
+            kyy = kyy,
+            kxy = kxy,
+            kyx = kyx,
+            cyy = cyy,
+            cxy = cxy,
+            cyx = cyx,
+            myy = myy,
+            mxy = mxy,
+            myx = myx,
+            kzz = kzz,
+            czz = czz,
+            mzz = mzz,
+            frequency = frequency,
+            tag = tag,
+            n_link = n_link,
+            scale_factor = scale_factor,
             color = color,
         )
 
@@ -150,20 +151,29 @@ class ST_ID_BearingElement:
                 self.param_values[params] = value
                 self.attribute_dict[params] = value
 
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}"
-            f"(n={self.attribute_dict['n']}, n_link={self.attribute_dict['n_link']},\n"
-            f" kxx={self.attribute_dict['kxx']}, kxy={self.attribute_dict['kxy']},\n"
-            f" kyx={self.attribute_dict['kyx']}, kyy={self.attribute_dict['kyy']},\n"
-            f" kzz={self.attribute_dict['kzz']}, cxx={self.attribute_dict['cxx']},\n"
-            f" cxy={self.attribute_dict['cxy']}, cyx={self.attribute_dict['cyx']},\n"
-            f" cyy={self.attribute_dict['cyy']}, czz={self.attribute_dict['czz']},\n"
-            f" mxx={self.attribute_dict['mxx']}, mxy={self.attribute_dict['mxy']},\n"
-            f" myx={self.attribute_dict['myx']}, myy={self.attribute_dict['myy']},\n"
-            f" mzz={self.attribute_dict['mzz']},\n"
-            f" frequency={self.attribute_dict['frequency']}, tag={self.attribute_dict['tag']})"
-        )
+        
+
+        super().__init__(attribute_dict['n'],
+                         attribute_dict["kxx"],
+                         attribute_dict['cxx'],
+                         attribute_dict['mxx'],
+                         attribute_dict["kyy"],
+                         attribute_dict["kxy"],
+                         attribute_dict["kyx"],
+                         attribute_dict['cyy'],
+                         attribute_dict['cxy'],
+                         attribute_dict['cyx'],
+                         attribute_dict["myy"],
+                         attribute_dict["mxy"],
+                         attribute_dict['myx'],
+                         attribute_dict['kzz'],
+                         attribute_dict['czz'],
+                         attribute_dict['mzz'],
+                         attribute_dict['frequency'],
+                         attribute_dict['tag'],
+                         attribute_dict['n_link'],
+                         attribute_dict['scale_factor'],
+                         attribute_dict['color'])
 
 
     def __getitem__(self, key):
