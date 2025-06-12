@@ -93,7 +93,7 @@ class ST_ID_CouplingElement(CouplingElement):
     to_identify : list
         List of the object attributes to become stochastic.
         Possibilities:
-            []
+            [m_l, m_r, Ip_l, Ip_r, Id_l, Id_r, kt_x, kt_y, kt_z, kr_x, kr_y, kr_z, ct_x, ct_y, ct_z, cr_x, cr_y, cr_z, o_d]
 
     Examples
     --------
