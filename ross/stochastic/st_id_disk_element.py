@@ -6,10 +6,11 @@ This module creates an instance of random disk for stochastic analysis.
 import numpy as np
 from ross.units import check_units
 import ross as rs
+from ross import DiskElement
 
 __all__ = ["ST_ID_DiskElement", "ST_ID_Disk_FromGeometry"]
 
-class ST_ID_DiskElement:
+class ST_ID_DiskElement(DiskElement):
     """A disk element.
 
     This class creates a stochastic disk element from input data of inertia and mass.
@@ -88,6 +89,14 @@ class ST_ID_DiskElement:
                 value = np.random.uniform(self.attribute_dict[params][0],self.attribute_dict[params][1])
                 self.param_values[params] = value
                 self.attribute_dict[params] = value
+
+        super().__init__(attribute_dict['n'],
+                         attribute_dict['m'],
+                         attribute_dict['Id'],
+                         attribute_dict['Ip'],
+                         attribute_dict['tag'],
+                         attribute_dict['scale_factor'],
+                         attribute_dict['color'])
 
     def __getitem__(self, key):
             """Return the value for a given key from attribute_dict.
@@ -176,183 +185,4 @@ class ST_ID_DiskElement:
         for params, value in self.param_values.items():
             self.attribute_dict[params] = value
 
-        return list(iter(self.generator()))[0]
-    
-class ST_ID_Disk_FromGeometry:
-    """Create a stochastic disk element from geometry properties.
-        Parameters
-        ----------
-        n : int
-            Node in which the disk will be inserted.
-        material: ross.Material
-             Disk material.
-        width : float, pint.Quantity
-            The disk width.
-        i_d : float, pint.Quantity
-            Inner diameter.
-        o_d : float, pint.Quantity
-            Outer diameter.
-        tag : str, optional
-            A tag to name the element
-            Default is None
-        scale_factor: float, optional
-            The scale factor is used to scale the disk drawing.
-            Default is 1.
-        color : str, optional
-            A color to be used when the element is represented.
-            Default is 'Firebrick' (Cardinal).
-        to_identify : list
-        List of the object attributes to become stochastic.
-        Possibilities:
-            ["width", "i_d", "o_d"]
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> disk = ID_Disk_FromGeometry(0, steel, width = 0.07, i_d = 0.05, o_d = 0.28)
-        >>> disk["i_d"]
-        >>> 0.05
-        """
-
-    def __init__(
-            self,
-            n,
-            material,
-            width,
-            i_d,
-            o_d,
-            tag = None,
-            scale_factor = 1.0,
-            color = 'FireBrick',
-            to_identify = None,
-    ):
-        attribute_dict = dict(
-            n = n,
-            material = material,
-            width = width,
-            i_d = i_d,
-            o_d = o_d,
-            tag = tag,
-            scale_factor = scale_factor,
-            color = color
-            )
-        
-        self.attribute_dict = attribute_dict
-        self.to_identify = to_identify
-        self.interval_params = {}
-        self.param_values = {}
-        self.material = material
-
-        if to_identify != None:
-            for params in self.to_identify:
-                if type(self.attribute_dict[params]) != list and type(self.attribute_dict[params]) != np.ndarray:
-                    raise KeyError(f'The parameter {params} must be a list or numpy.ndarray')
-                
-            for params in self.to_identify:
-                self.interval_params[params] = self.attribute_dict[params]
-                value = np.random.uniform(self.attribute_dict[params][0],self.attribute_dict[params][1])
-                self.param_values[params] = value
-                self.attribute_dict[params] = value
-
-        if type(self.material) != rs.materials.Material:
-            self.attribute_dict['material'] = self.material.new_material()
-            if self.material.to_identify != None:
-                if self.to_identify == None:
-                    self.to_identify = ['material_id']
-                else:
-                    self.to_identify.append('material_id')
-
-
-    def __getitem__(self, key):
-            """Return the value for a given key from attribute_dict.
-
-            Parameters
-            ----------
-            key : str
-                A class parameter as string.
-
-            Raises
-            ------
-            KeyError
-                Raises an error if the parameter doesn't belong to the class.
-
-            Returns
-            -------
-            Return the value for the given key.
-
-            Example
-            -------
-            >>> from ross.materials import steel
-            >>> disk = ID_Disk_FromGeometry(0, steel, width = 0.07, i_d = 0.05, o_d = 0.28)
-            >>> disk["i_d"]
-            >>> 0.05
-            """
-
-            if key not in self.attribute_dict.keys():
-                raise KeyError("Object does not have parameter: {}.".format(key))
-
-            return self.attribute_dict[key]
-    
-    def __setitem__(self, key, value):
-            """Set new parameter values for the object.
-
-            Function to change a parameter value.
-            It's not allowed to add new parameters to the object.
-
-            Parameters
-            ----------
-            key : str
-                A class parameter as string.
-            value : The corresponding value for the attribute_dict's key.
-                ***check the correct type for each key in ID_Disk_FromGeometry
-                docstring.
-
-            Raises
-            ------
-            KeyError
-                Raises an error if the parameter doesn't belong to the class.
-
-            Example
-            -------
-            >>> from ross.materials import steel
-            >>> disk = ID_Disk_FromGeometry(0, steel, width = 0.07, i_d = 0.05, o_d = 0.28)
-            >>> disk["i_d"] = 0.04
-            >>> disk["i_d"] 
-            >>> 0.04
-            """
-
-            if key not in self.attribute_dict.keys():
-                raise KeyError("Object does not have parameter: {}.".format(key))
-            self.attribute_dict[key] = value        
-            if key in self.param_values:
-                self.param_values[key] = value
-    
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}"
-            f"(Material={self.attribute_dict['material']}, width={self.attribute_dict['width']:{0}.{5}}, "
-            f"i_d={self.attribute_dict['i_d']:{0}.{5}}, o_d={self.attribute_dict['o_d']:{0}.{5}}, "
-            f"n={self.attribute_dict['n']}, scale_factor={self.attribute_dict['scale_factor']}, tag={self.attribute_dict['tag']!r})"
-        )
-
-    def generator(self):
-
-        args = []
-
-        for value in self.attribute_dict.values():
-            args.append(value)
-
-        new_args = [args]
-        
-        f_list = (rs.DiskElement.from_geometry(*arg) for arg in new_args)
-
-        return f_list
-    
-    def new_disk(self):
-
-        self.attribute_dict['material'] = self.material.new_material()
-
-        for params, value in self.param_values.items():
-                self.attribute_dict[params] = value
-                                
         return list(iter(self.generator()))[0]
