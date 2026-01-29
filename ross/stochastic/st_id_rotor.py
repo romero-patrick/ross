@@ -8,7 +8,7 @@ import scipy as sp
 #from paretoset import paretoset
 import pandas as pd
 from scipy.signal import find_peaks
-from ross import rotor_assembly
+from ross.rotor_assembly import Rotor
 import gc
 from ross.stochastic.st_id_results import ST_ID_FrequencyResponseResults
 from ross.stochastic.st_id_results import ST_ID_TimeResponseResults
@@ -18,7 +18,7 @@ from ross.stochastic.st_id_results import ST_ID_TimeResponseResults
 __all__ = ["ST_ID_Rotor"]
 
 
-class ST_ID_Rotor(rotor_assembly.Rotor):
+class ST_ID_Rotor(Rotor):
 
     def __init__(
         self,

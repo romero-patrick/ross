@@ -6,7 +6,7 @@ This module creates an instance of random coupling element for stochastic analys
 import numpy as np
 from ross.units import check_units
 import ross as rs
-from ross import CouplingElement
+from ross.coupling_element import CouplingElement
 
 __all__ = ["ST_ID_CouplingElement"]
 
@@ -93,7 +93,7 @@ class ST_ID_CouplingElement(CouplingElement):
     to_identify : list
         List of the object attributes to become stochastic.
         Possibilities:
-            [m_l, m_r, Ip_l, Ip_r, Id_l, Id_r, kt_x, kt_y, kt_z, kr_x, kr_y, kr_z, ct_x, ct_y, ct_z, cr_x, cr_y, cr_z, o_d]
+            []
 
     Examples
     --------
@@ -127,6 +127,7 @@ class ST_ID_CouplingElement(CouplingElement):
         scale_factor=1,
         color="#647e91",
         to_identify = None,
+        erro = None
     ):
                
         
@@ -162,18 +163,27 @@ class ST_ID_CouplingElement(CouplingElement):
         self.interval_params = {}
         self.param_values = {}
 
-        if to_identify != None:
+        if self.to_identify:
+            
             for params in self.to_identify:
-                if type(self.attribute_dict[params]) != list and type(self.attribute_dict[params]) != np.ndarray:
-                    raise KeyError(f'The parameter {params} must be a list or numpy.ndarray')
+                original_value = self.attribute_dict[params]
                 
-            for params in self.to_identify:
-                self.interval_params[params] = self.attribute_dict[params]
+                if erro is None:
+                    if not isinstance(original_value, (list, np.ndarray)):
+                        raise KeyError(f'Parameter {params} must be a list/ndarray when erro is None')
+                    
+                    interval = original_value
 
-            for params in self.to_identify:
-                value = np.random.uniform(self.attribute_dict[params][0],self.attribute_dict[params][1])
-                self.param_values[params] = value
-                self.attribute_dict[params] = value
+                else:
+                    if isinstance(original_value, (list, np.ndarray)):
+                        raise KeyError(f'Parameter {params} should not be a list/ndarray when erro is informed')
+                    
+                    interval = [original_value * (1 - erro), original_value * (1 + erro)]
+                
+                self.interval_params[params] = interval
+                new_value = np.random.uniform(interval[0], interval[1])
+                self.param_values[params] = new_value
+                self.attribute_dict[params] = new_value
 
         
 

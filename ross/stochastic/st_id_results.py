@@ -66,7 +66,7 @@ class ST_ID_Results(ABC):
         >>> file = Path(tempdir) / 'results.toml'
         >>> results.save(file)
         """
-        
+        # get __init__ arguments
         signature = inspect.signature(self.__init__)
         args_list = list(signature.parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
@@ -135,7 +135,7 @@ class ST_ID_Results(ABC):
         True
         """
         data = toml.load(file)
-        
+        # extract single dictionary in the data
         data = list(data.values())[0]
         for key, value in data.items():
             if isinstance(value, Iterable):
@@ -422,33 +422,33 @@ class ST_ID_FrequencyResponseResults(ST_ID_Results):
                             subplot_titles=[f'<b>{element}</b>' for element in elements for _ in range(rows)]
                            )
 
-        
+        # Definir configurações padrão para o histograma POSTERIOR
         default_posterior_kwargs = {
             'opacity': 0.7,
             'histnorm': 'probability',
-            'marker_color': '#1f77b4',       
+            'marker_color': '#1f77b4',       # Azul padrão do Plotly
             'marker_line_width': 1,
             'marker_line_color': 'black',
         }
-        
+        # Atualiza as configurações padrão do Posterior com as fornecidas pelo usuário
         if histogram_kwargs_posterior is None:
             histogram_kwargs_posterior = {}
         final_posterior_kwargs = {**default_posterior_kwargs, **histogram_kwargs_posterior}
 
-        
+        # Definir configurações padrão para o histograma PRIOR
         default_prior_kwargs = {
             'opacity': 0.7,
             'histnorm': 'probability',
-            'marker_color': '#ff7f0e',       
+            'marker_color': '#ff7f0e',       # Laranja padrão do Plotly
             'marker_line_width': 1,
             'marker_line_color': 'black',
         }
-        
+        # Atualiza as configurações padrão do Prior com as fornecidas pelo usuário
         if histogram_kwargs_prior is None:
             histogram_kwargs_prior = {}
         final_prior_kwargs = {**default_prior_kwargs, **histogram_kwargs_prior}
 
-        
+        # Controlar quais traces mostram a legenda (apenas uma vez para cada)
         show_legend_for_traces = {
             'Posterior': True,
             'Prior': True
@@ -456,37 +456,39 @@ class ST_ID_FrequencyResponseResults(ST_ID_Results):
 
         for i, element in enumerate(elements):
             for j, parameter in enumerate(parameters):
-                
+                # Dados para o Posterior
                 posterior_data = self.distributions[element][parameter]
                 
-                
+                # Adiciona o trace POSTERIOR
                 fig.add_trace(go.Histogram(
                     x=posterior_data,
                     name='Posterior',
                     showlegend=show_legend_for_traces['Posterior'] and (i == 0 and j == 0),
-                    **final_posterior_kwargs 
+                    **final_posterior_kwargs # Desempacota as configurações do Posterior
                 ),
                 row=j + 1,
                 col=i + 1)
 
                 if prior:
-                    
+                    # Dados para o Prior
                     prior_data = self.Prior[element][parameter]
                     
-                    
+                    # Adiciona o trace PRIOR
                     fig.add_trace(go.Histogram(
                         x=prior_data,
                         name='Prior',
                         showlegend=show_legend_for_traces['Prior'] and (i == 0 and j == 0),
-                        **final_prior_kwargs
+                        **final_prior_kwargs # Desempacota as configurações do Prior
                     ),
                     row=j + 1,
                     col=i + 1)
                 
-               
+                # Atualizar o título do eixo X
                 fig.update_xaxes(title_text=f'<b>{parameter}</b>', row=j+1, col=i+1)
                 
-                
+                # O título do eixo Y agora pode ser mais genérico ou depender do 'histnorm'
+                # da primeira categoria plotada ou de uma preferência.
+                # Aqui, vamos usar 'Densidade' se algum dos histnorm for density, senão 'Contagem'.
                 y_axis_title = '<b>Count</b>'
                 if final_posterior_kwargs['histnorm'] in ['probability', 'probability density'] or \
                    (prior and final_prior_kwargs['histnorm'] in ['probability', 'probability density']):
@@ -494,13 +496,13 @@ class ST_ID_FrequencyResponseResults(ST_ID_Results):
                 fig.update_yaxes(title_text=y_axis_title, row=j+1, col=i+1)
 
 
-        
+        # Configurações gerais do layout
         fig.update_layout(
-            barmode='overlay', 
-            title_text='<b>Parameters Distribution</b>', 
-            title_x=0.5,
-            hovermode='x unified', 
-            legend_title_text='<b>Tipo de Distribuição</b>',
+            barmode='overlay', # Para sobrepor os histogramas
+            title_text='<b>Parameters Distribution</b>', # Título geral do gráfico
+            title_x=0.5, # Centraliza o título
+            hovermode='x unified', # Melhora a interatividade ao passar o mouse
+            legend_title_text='<b>Tipo de Distribuição</b>', # Título da legenda
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
@@ -510,7 +512,7 @@ class ST_ID_FrequencyResponseResults(ST_ID_Results):
             )
         )
         
-        
+        # Ajusta os títulos dos subplots
         for i, element in enumerate(elements):
             fig.layout.annotations[i*rows].update(text=f'<b>{element}</b>', font_size=16)
 
@@ -604,7 +606,7 @@ class ST_ID_TimeResponseResults(ST_ID_Results):
                 dofx = ndof * node - fix_dof
                 dofy = ndof * node + 1 - fix_dof
 
-                
+                # fmt: off
                 operator = np.array(
                     [[np.cos(angle), np.sin(angle)],
                     [-np.sin(angle), np.cos(angle)]]
@@ -612,7 +614,7 @@ class ST_ID_TimeResponseResults(ST_ID_Results):
 
                 _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
                 probe_resp = _probe_resp[0,:]
-                
+                # fmt: on
             else:
                 dofz = ndof * node + 2 - fix_dof
                 probe_resp = self.yout[:, dofz]
@@ -773,33 +775,33 @@ class ST_ID_TimeResponseResults(ST_ID_Results):
                             subplot_titles=[f'<b>{element}</b>' for element in elements for _ in range(rows)]
                            )
 
-       
+        # Definir configurações padrão para o histograma POSTERIOR
         default_posterior_kwargs = {
             'opacity': 0.7,
             'histnorm': 'probability',
-            'marker_color': '#1f77b4',       
+            'marker_color': '#1f77b4',       # Azul padrão do Plotly
             'marker_line_width': 1,
             'marker_line_color': 'black',
         }
-        
+        # Atualiza as configurações padrão do Posterior com as fornecidas pelo usuário
         if histogram_kwargs_posterior is None:
             histogram_kwargs_posterior = {}
         final_posterior_kwargs = {**default_posterior_kwargs, **histogram_kwargs_posterior}
 
-        
+        # Definir configurações padrão para o histograma PRIOR
         default_prior_kwargs = {
             'opacity': 0.7,
             'histnorm': 'probability',
-            'marker_color': '#ff7f0e',       
+            'marker_color': '#ff7f0e',       # Laranja padrão do Plotly
             'marker_line_width': 1,
             'marker_line_color': 'black',
         }
-        
+        # Atualiza as configurações padrão do Prior com as fornecidas pelo usuário
         if histogram_kwargs_prior is None:
             histogram_kwargs_prior = {}
         final_prior_kwargs = {**default_prior_kwargs, **histogram_kwargs_prior}
 
-        
+        # Controlar quais traces mostram a legenda (apenas uma vez para cada)
         show_legend_for_traces = {
             'Posterior': True,
             'Prior': True
@@ -807,37 +809,39 @@ class ST_ID_TimeResponseResults(ST_ID_Results):
 
         for i, element in enumerate(elements):
             for j, parameter in enumerate(parameters):
-                
+                # Dados para o Posterior
                 posterior_data = self.distributions[element][parameter]
                 
-                
+                # Adiciona o trace POSTERIOR
                 fig.add_trace(go.Histogram(
                     x=posterior_data,
                     name='Posterior',
                     showlegend=show_legend_for_traces['Posterior'] and (i == 0 and j == 0),
-                    **final_posterior_kwargs 
+                    **final_posterior_kwargs # Desempacota as configurações do Posterior
                 ),
                 row=j + 1,
                 col=i + 1)
 
                 if prior:
-                    
+                    # Dados para o Prior
                     prior_data = self.Prior[element][parameter]
                     
-                    
+                    # Adiciona o trace PRIOR
                     fig.add_trace(go.Histogram(
                         x=prior_data,
                         name='Prior',
                         showlegend=show_legend_for_traces['Prior'] and (i == 0 and j == 0),
-                        **final_prior_kwargs 
+                        **final_prior_kwargs # Desempacota as configurações do Prior
                     ),
                     row=j + 1,
                     col=i + 1)
                 
-                
+                # Atualizar o título do eixo X
                 fig.update_xaxes(title_text=f'<b>{parameter}</b>', row=j+1, col=i+1)
                 
-                
+                # O título do eixo Y agora pode ser mais genérico ou depender do 'histnorm'
+                # da primeira categoria plotada ou de uma preferência.
+                # Aqui, vamos usar 'Densidade' se algum dos histnorm for density, senão 'Contagem'.
                 y_axis_title = '<b>Count</b>'
                 if final_posterior_kwargs['histnorm'] in ['probability', 'probability density'] or \
                    (prior and final_prior_kwargs['histnorm'] in ['probability', 'probability density']):
@@ -845,13 +849,13 @@ class ST_ID_TimeResponseResults(ST_ID_Results):
                 fig.update_yaxes(title_text=y_axis_title, row=j+1, col=i+1)
 
 
-        
+        # Configurações gerais do layout
         fig.update_layout(
-            barmode='overlay', 
-            title_text='<b>Parameters Distribution</b>', 
-            title_x=0.5, 
-            hovermode='x unified', 
-            legend_title_text='<b>Tipo de Distribuição</b>', 
+            barmode='overlay', # Para sobrepor os histogramas
+            title_text='<b>Parameters Distribution</b>', # Título geral do gráfico
+            title_x=0.5, # Centraliza o título
+            hovermode='x unified', # Melhora a interatividade ao passar o mouse
+            legend_title_text='<b>Tipo de Distribuição</b>', # Título da legenda
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
@@ -861,7 +865,7 @@ class ST_ID_TimeResponseResults(ST_ID_Results):
             )
         )
         
-        
+        # Ajusta os títulos dos subplots
         for i, element in enumerate(elements):
             fig.layout.annotations[i*rows].update(text=f'<b>{element}</b>', font_size=16)
 

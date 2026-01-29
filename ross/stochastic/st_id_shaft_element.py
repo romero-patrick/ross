@@ -6,7 +6,8 @@ This module creates an instance of random shaft for stochastic analysis.
 import numpy as np
 from ross.units import check_units
 import ross as rs
-from ross import ShaftElement
+from ross.shaft_element import ShaftElement
+from ross.materials import Material
 
 __all__ = ["ST_ID_ShaftElement"]
 
@@ -91,7 +92,8 @@ class ST_ID_ShaftElement(ShaftElement):
             tag = None,
             alpha = 0.0,
             beta = 0.0,
-            to_identify = None
+            to_identify = None,
+            erro = None
     ):
         
         attribute_dict = dict(
@@ -119,18 +121,29 @@ class ST_ID_ShaftElement(ShaftElement):
         self.param_values = {}
         self.id_material = material
 
-        if to_identify != None:
+        if self.to_identify:
+            
             for params in self.to_identify:
-                if type(self.attribute_dict[params]) != list and type(self.attribute_dict[params]) != np.ndarray:
-                    raise KeyError(f'The parameter {params} must be a list or numpy.ndarray')
+                original_value = self.attribute_dict[params]
                 
-            for params in self.to_identify:
-                self.interval_params[params] = self.attribute_dict[params]
-                value = np.random.uniform(self.attribute_dict[params][0],self.attribute_dict[params][1])
-                self.param_values[params] = value
-                self.attribute_dict[params] = value
+                if erro is None:
+                    if not isinstance(original_value, (list, np.ndarray)):
+                        raise KeyError(f'Parameter {params} must be a list/ndarray when erro is None')
+                    
+                    interval = original_value
 
-        if type(self.id_material) != rs.materials.Material:
+                else:
+                    if isinstance(original_value, (list, np.ndarray)):
+                        raise KeyError(f'Parameter {params} should not be a list/ndarray when erro is informed')
+                    
+                    interval = [original_value * (1 - erro), original_value * (1 + erro)]
+                
+                self.interval_params[params] = interval
+                new_value = np.random.uniform(interval[0], interval[1])
+                self.param_values[params] = new_value
+                self.attribute_dict[params] = new_value
+
+        if type(self.id_material) != Material:
             self.attribute_dict['material'] = self.id_material.new_material()
             if self.id_material.to_identify != None:
                 if self.to_identify == None:
@@ -238,7 +251,10 @@ class ST_ID_ShaftElement(ShaftElement):
     
     def new_shaft(self):
 
-        self.attribute_dict['material'] = self.id_material.new_material()
+        if isinstance (self.id_material, (Material)):
+             pass
+        else:
+            self.attribute_dict['material'] = self.id_material.new_material()
 
         for params, value in self.param_values.items():
                 self.attribute_dict[params] = value

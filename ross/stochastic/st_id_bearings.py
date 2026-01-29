@@ -103,6 +103,7 @@ class ST_ID_BearingElement(BearingElement):
         scale_factor=1,
         color="#355d7a",
         to_identify = None,
+        erro = None
     ):
                
         
@@ -134,22 +135,33 @@ class ST_ID_BearingElement(BearingElement):
         self.to_identify = to_identify
         self.interval_params = {}
         self.param_values = {}
-
-        if to_identify != None:
-            if "frequency" in to_identify:
-                raise ValueError("frequency can not be a variable to identify") 
-
+        erro = erro
+        
+        if self.to_identify:
+            if "frequency" in self.to_identify:
+                raise ValueError("frequency cannot be a variable to identify")
+            
             for params in self.to_identify:
-                if type(self.attribute_dict[params]) != list and type(self.attribute_dict[params]) != np.ndarray:
-                    raise KeyError(f'The parameter {params} must be a list or numpy.ndarray')
+                original_value = self.attribute_dict[params]
                 
-            for params in self.to_identify:
-                self.interval_params[params] = self.attribute_dict[params]
+                if erro is None:
+                    if not isinstance(original_value, (list, np.ndarray)):
+                        raise KeyError(f'Parameter {params} must be a list/ndarray when erro is None')
+                    
+                    interval = original_value
 
-            for params in self.to_identify:
-                value = np.random.uniform(self.attribute_dict[params][0],self.attribute_dict[params][1])
-                self.param_values[params] = value
-                self.attribute_dict[params] = value
+                else:
+                    if isinstance(original_value, (list, np.ndarray)):
+                        raise KeyError(f'Parameter {params} should not be a list/ndarray when erro is informed')
+                    
+                    interval = [original_value * (1 - erro), original_value * (1 + erro)]
+                
+                self.interval_params[params] = interval
+                new_value = np.random.uniform(interval[0], interval[1])
+                self.param_values[params] = new_value
+                self.attribute_dict[params] = new_value
+
+
 
         
 

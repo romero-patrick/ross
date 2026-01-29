@@ -8,7 +8,7 @@ from ross.units import check_units
 import ross as rs
 from ross import DiskElement
 
-__all__ = ["ST_ID_DiskElement", "ST_ID_Disk_FromGeometry"]
+__all__ = ["ST_ID_DiskElement"]
 
 class ST_ID_DiskElement(DiskElement):
     """A disk element.
@@ -60,7 +60,8 @@ class ST_ID_DiskElement(DiskElement):
         tag = None,
         scale_factor = 1.0,
         color = 'Firebrick',
-        to_identify = None
+        to_identify = None,
+        erro = None
     ):
         attribute_dict = dict(
             n = n,
@@ -77,18 +78,27 @@ class ST_ID_DiskElement(DiskElement):
         self.interval_params = {}
         self.param_values = {}
 
-        if to_identify != None:
+        if self.to_identify:
+            
             for params in self.to_identify:
-                if type(self.attribute_dict[params]) != list and type(self.attribute_dict[params]) != np.ndarray:
-                    raise KeyError(f'The parameter {params} must be a list or numpy.ndarray')
+                original_value = self.attribute_dict[params]
                 
-            for params in self.to_identify:
-                self.interval_params[params] = self.attribute_dict[params]
+                if erro is None:
+                    if not isinstance(original_value, (list, np.ndarray)):
+                        raise KeyError(f'Parameter {params} must be a list/ndarray when erro is None')
+                    
+                    interval = original_value
 
-            for params in self.to_identify:
-                value = np.random.uniform(self.attribute_dict[params][0],self.attribute_dict[params][1])
-                self.param_values[params] = value
-                self.attribute_dict[params] = value
+                else:
+                    if isinstance(original_value, (list, np.ndarray)):
+                        raise KeyError(f'Parameter {params} should not be a list/ndarray when erro is informed')
+                    
+                    interval = [original_value * (1 - erro), original_value * (1 + erro)]
+                
+                self.interval_params[params] = interval
+                new_value = np.random.uniform(interval[0], interval[1])
+                self.param_values[params] = new_value
+                self.attribute_dict[params] = new_value
 
         super().__init__(attribute_dict['n'],
                          attribute_dict['m'],
@@ -186,3 +196,4 @@ class ST_ID_DiskElement(DiskElement):
             self.attribute_dict[params] = value
 
         return list(iter(self.generator()))[0]
+    
