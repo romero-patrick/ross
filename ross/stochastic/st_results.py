@@ -2,13 +2,11 @@
 
 This module returns graphs for each type of analyses in st_rotor_assembly.py.
 """
-
 import copy
 import inspect
 from abc import ABC
 from collections.abc import Iterable
 from pathlib import Path
-from warnings import warn
 
 import numpy as np
 import toml
@@ -30,7 +28,6 @@ __all__ = [
     "ST_ForcedResponseResults",
     "ST_Results",
 ]
-
 
 class ST_Results(ABC):
     """Results class.
@@ -148,326 +145,7 @@ class ST_Results(ABC):
                     data[key] = np.array(value).astype(np.complex128)
         return cls.read_toml_data(data)
 
-
-class ST_CampbellResults(ST_Results):
-    """Store stochastic results and provide plots for Campbell Diagram.
-
-    It's possible to visualize multiples harmonics in a single plot to check
-    other speeds which also excite a specific natural frequency.
-    Two options for plooting are available: Matplotlib and Bokeh. The user
-    chooses between them using the attribute plot_type. The default is bokeh
-
-    Parameters
-    ----------
-    speed_range : array
-        Array with the speed range in rad/s.
-    wd : array
-        Array with the damped natural frequencies
-    log_dec : array
-        Array with the Logarithmic decrement
-
-    Returns
-    -------
-    subplots : Plotly graph_objects.make_subplots()
-        Plotly figure with diagrams for frequency and log dec.
-    """
-
-    def __init__(self, speed_range, wd, log_dec, mode_type):
-        self.speed_range = speed_range
-        self.wd = wd
-        self.log_dec = log_dec
-        self.mode_type = mode_type
-
-    def plot_nat_freq(
-        self,
-        percentile=[],
-        conf_interval=[],
-        harmonics=[1],
-        frequency_units="rad/s",
-        **kwargs,
-    ):
-        """Plot the damped natural frequencies vs frequency.
-
-        Parameters
-        ----------
-        percentile : list, optional
-            Sequence of percentiles to compute, which must be between
-            0 and 100 inclusive.
-        conf_interval : list, optional
-            Sequence of confidence intervals to compute, which must be between
-            0 and 100 inclusive.
-        harmonics: list, optional
-            List withe the harmonics to be plotted.
-            The default is to plot 1x.
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
-        wd = Q_(self.wd, "rad/s").to(frequency_units).m
-        speed_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-        conf_interval = np.sort(conf_interval)
-        percentile = np.sort(percentile)
-
-        fig = go.Figure()
-        x = np.concatenate((speed_range, speed_range[::-1]))
-
-        for j, h in enumerate(harmonics):
-            fig.add_trace(
-                go.Scatter(
-                    x=speed_range,
-                    y=speed_range * h,
-                    mode="lines",
-                    name="{}x speed".format(h),
-                    line=dict(width=3, color=colors1[j], dash="dashdot"),
-                    legendgroup="speed{}".format(j),
-                    hovertemplate=("Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"),
-                )
-            )
-
-        for mode in ["Lateral", "Torsional", "Axial"]:
-            mode_num = np.unique(np.where(self.mode_type == mode)[0])
-
-            for n, j in enumerate(mode_num):
-                fig.add_trace(
-                    go.Scatter(
-                        x=speed_range,
-                        y=np.mean(wd[j], axis=1),
-                        name=f"Mean - Mode {n + 1} ({mode})",
-                        mode="lines",
-                        line=dict(width=3, color=colors1[j]),
-                        legendgroup=f"mean{j}",
-                        hovertemplate=(
-                            "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
-                        ),
-                    )
-                )
-                for i, p in enumerate(percentile):
-                    fig.add_trace(
-                        go.Scatter(
-                            x=speed_range,
-                            y=np.percentile(wd[j], p, axis=1),
-                            opacity=0.6,
-                            mode="lines",
-                            line=dict(width=2.5, color=colors2[j]),
-                            name=f"percentile: {p}%",
-                            legendgroup=f"percentile{j}{i}",
-                            hovertemplate=(
-                                "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
-                            ),
-                        )
-                    )
-                for i, p in enumerate(conf_interval):
-                    p1 = np.percentile(wd[j], 50 + p / 2, axis=1)
-                    p2 = np.percentile(wd[j], 50 - p / 2, axis=1)
-                    fig.add_trace(
-                        go.Scatter(
-                            x=x,
-                            y=np.concatenate((p1, p2[::-1])),
-                            mode="lines",
-                            line=dict(width=1, color=colors1[j]),
-                            fill="toself",
-                            fillcolor=colors1[j],
-                            opacity=0.3,
-                            name=f"confidence interval: {p}% - Mode {n + 1} ({mode})",
-                            legendgroup="conf{}{}".format(j, i),
-                            hovertemplate=(
-                                "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
-                            ),
-                        )
-                    )
-
-        fig.update_xaxes(
-            title_text=f"Frequency ({frequency_units})",
-            range=[np.min(speed_range), np.max(speed_range)],
-            exponentformat="none",
-        )
-        fig.update_yaxes(
-            title_text=f"Natural Frequencies ({frequency_units})",
-            range=[0, 1.1 * np.max(wd)],
-        )
-        fig.update_layout(**kwargs)
-
-        return fig
-
-    def plot_log_dec(
-        self,
-        percentile=[],
-        conf_interval=[],
-        frequency_units="rad/s",
-        **kwargs,
-    ):
-        """Plot the log. decrement vs frequency.
-
-        Parameters
-        ----------
-        percentile : list, optional
-            Sequence of percentiles to compute, which must be between
-            0 and 100 inclusive.
-        conf_interval : list, optional
-            Sequence of confidence intervals to compute, which must be between
-            0 and 100 inclusive.
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
-        conf_interval = np.sort(conf_interval)
-        percentile = np.sort(percentile)
-        speed_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-
-        fig = go.Figure()
-        x = np.concatenate((speed_range, speed_range[::-1]))
-
-        for mode in ["Lateral", "Torsional", "Axial"]:
-            mode_num = np.unique(np.where(self.mode_type == mode)[0])
-
-            for n, j in enumerate(mode_num):
-                fig.add_trace(
-                    go.Scatter(
-                        x=speed_range,
-                        y=np.mean(self.log_dec[j], axis=1),
-                        opacity=1.0,
-                        name=f"Mean - Mode {n + 1} ({mode})",
-                        line=dict(width=3, color=colors1[j]),
-                        legendgroup=f"mean{j}",
-                        hovertemplate=("Frequency: %{x:.3f}<br>" + "Log Dec: %{y:.3f}"),
-                    )
-                )
-
-                for i, p in enumerate(percentile):
-                    fig.add_trace(
-                        go.Scatter(
-                            x=speed_range,
-                            y=np.percentile(self.log_dec[j], p, axis=1),
-                            opacity=0.6,
-                            line=dict(width=2.5, color=colors2[j]),
-                            name=f"percentile: {p}%",
-                            legendgroup=f"percentile{j}{i}",
-                            hoverinfo="none",
-                        )
-                    )
-
-                for i, p in enumerate(conf_interval):
-                    p1 = np.percentile(self.log_dec[j], 50 + p / 2, axis=1)
-                    p2 = np.percentile(self.log_dec[j], 50 - p / 2, axis=1)
-                    fig.add_trace(
-                        go.Scatter(
-                            x=x,
-                            y=np.concatenate((p1, p2[::-1])),
-                            line=dict(width=1, color=colors1[j]),
-                            fill="toself",
-                            fillcolor=colors1[j],
-                            opacity=0.3,
-                            name=f"confidence interval: {p}% - Mode {n + 1} ({mode})",
-                            legendgroup=f"conf{j}{i}",
-                            hoverinfo="none",
-                        )
-                    )
-
-        fig.update_xaxes(
-            title_text=f"Frequency ({frequency_units})",
-            range=[np.min(speed_range), np.max(speed_range)],
-            exponentformat="none",
-        )
-        fig.update_yaxes(
-            title_text="Logarithmic decrement",
-        )
-        fig.update_layout(**kwargs)
-
-        return fig
-
-    def plot(
-        self,
-        percentile=[],
-        conf_interval=[],
-        harmonics=[1],
-        frequency_units="rad/s",
-        freq_kwargs=None,
-        logdec_kwargs=None,
-        fig_kwargs=None,
-    ):
-        """Plot Campbell Diagram.
-
-        This method plots Campbell Diagram.
-
-        Parameters
-        ----------
-        percentile : list, optional
-            Sequence of percentiles to compute, which must be between
-            0 and 100 inclusive.
-        conf_interval : list, optional
-            Sequence of confidence intervals to compute, which must be between
-            0 and 100 inclusive.
-        harmonics: list, optional
-            List withe the harmonics to be plotted.
-            The default is to plot 1x.
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
-        freq_kwargs : dict, optional
-            Additional key word arguments can be passed to change the natural frequency
-            vs frequency plot layout only (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-        logdec_kwargs : dict, optional
-            Additional key word arguments can be passed to change the log. decrement
-            vs frequency plot layout only (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-        fig_kwargs : dict, optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...). This kwargs override "freq_kwargs",
-            "logdec_kwargs" dictionaries.
-            *See Plotly Python make_subplots Reference for more information.
-
-        Returns
-        -------
-        subplots : Plotly graph_objects.make_subplots()
-            Plotly figure with diagrams for frequency and log dec.
-        """
-        freq_kwargs = {} if freq_kwargs is None else copy.copy(freq_kwargs)
-        logdec_kwargs = {} if logdec_kwargs is None else copy.copy(logdec_kwargs)
-        fig_kwargs = {} if fig_kwargs is None else copy.copy(fig_kwargs)
-
-        fig0 = self.plot_nat_freq(
-            percentile, conf_interval, harmonics, frequency_units, **freq_kwargs
-        )
-        fig1 = self.plot_log_dec(
-            percentile, conf_interval, frequency_units, **logdec_kwargs
-        )
-
-        fig = make_subplots(rows=1, cols=2)
-        for data in fig0["data"]:
-            fig.add_trace(data, 1, 1)
-        for data in fig1["data"]:
-            data.showlegend = False
-            fig.add_trace(data, 1, 2)
-
-        fig.update_xaxes(fig0.layout.xaxis, row=1, col=1)
-        fig.update_yaxes(fig0.layout.yaxis, row=1, col=1)
-        fig.update_xaxes(fig1.layout.xaxis, row=1, col=2)
-        fig.update_yaxes(fig1.layout.yaxis, row=1, col=2)
-        fig.update_layout(**fig_kwargs)
-
-        return fig
-
-
-class ST_FrequencyResponseResults(ST_Results):
+class st_Frequency(ST_Results):
     """Store stochastic results and provide plots for Frequency Response.
 
     Parameters
@@ -1040,106 +718,45 @@ class ST_FrequencyResponseResults(ST_Results):
         )
 
         return fig
+        
+class st_Time(ST_Results):
 
-
-class ST_TimeResponseResults(ST_Results):
-    """Store stochastic results and provide plots for Time Response and Orbit Response.
-
-    Parameters
-    ----------
-    t : 1-dimensional array
-        Time array.
-    yout : array
-        System response.
-    xout : array
-        Time evolution of the state vector.
-    nodes: array
-        list with nodes from a rotor model.
-    link_nodes: array
-        list with nodes created with "n_link" from a rotor model.
-    nodes_pos: array
-        Rotor nodes axial positions.
-    number_dof : int
-        Number of degrees of freedom per shaft element's node
-
-    Returns
-    -------
-    fig : Plotly graph_objects.Figure()
-        The figure object with the plot.
-    """
-
-    def __init__(self, t, yout, xout, number_dof, nodes, link_nodes, nodes_pos):
-        self.t = t
-        self.yout = yout
-        self.xout = xout
+    def __init__(self, 
+                 time, 
+                 resp_stochTime,
+                 nodes, 
+                 ndof, 
+                 nodes_pos, 
+                 link_nodes
+                 ):
+        
+        self.time = time
+        self.resp_stochTime = resp_stochTime
         self.nodes = nodes
-        self.link_nodes = link_nodes
+        self.ndof = ndof
         self.nodes_pos = nodes_pos
-        self.number_dof = number_dof
+        self.link_nodes = link_nodes
 
-    def plot_1d(
-        self,
-        probe,
-        percentile=[],
-        conf_interval=[],
-        probe_units="rad",
-        displacement_units="m",
-        time_units="s",
-        fig=None,
-        **kwargs,
-    ):
-        """Plot stochastic time response.
 
-        This method plots the time response given a tuple of probes with their nodes
-        and orientations.
+    def xout(self):
+        return self.resp_stochTime[0]
 
-        Parameters
-        ----------
-        probe : list of tuples
-            List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
-        percentile : list, optional
-            Sequence of percentiles to compute, which must be
-            between 0 and 100 inclusive.
-        conf_interval : list, optional
-            Sequence of confidence intervals to compute, which must be
-            between 0 and 100 inclusive.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
-        displacement_units : str, optional
-            Displacement units.
-            Default is 'm'.
-        time_units : str
-            Time units.
-            Default is 's'.
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
 
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
-        nodes = self.nodes
-        link_nodes = self.link_nodes
-        ndof = self.number_dof
+    def yout(self):
+        return self.resp_stochTime[1]
 
-        if fig is None:
-            fig = go.Figure()
 
+    def plot_1d(self, 
+                probe, 
+                percentile=[],
+                conf_interval=[],
+                probe_units="rad",
+                displacement_units="m",
+                time_units="s",):
+        
         conf_interval = np.sort(conf_interval)
         percentile = np.sort(percentile)
-
+        fig = go.Figure()
         for i, p in enumerate(probe):
             try:
                 node = p.node
@@ -1160,7 +777,7 @@ class ST_TimeResponseResults(ST_Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
             dofx = ndof * node - fix_dof
@@ -1168,19 +785,23 @@ class ST_TimeResponseResults(ST_Results):
 
             # fmt: off
             operator = np.array(
-                [[np.cos(angle), np.sin(angle)],
-                 [-np.sin(angle), np.cos(angle)]]
-            )
+                [[np.cos(angle), - np.sin(angle)],
+                 [np.sin(angle), + np.cos(angle)]]
+                )
 
-            probe_resp = np.zeros_like(self.yout[:, :, 0])
-            for j, y in enumerate(self.yout):
+            probe_resp = np.zeros_like(self.resp_stochTime[1][:, :, 0])
+
+            for j, y in enumerate(self.resp_stochTime[1]):
                 _probe_resp = operator @ np.vstack((y[:, dofx], y[:, dofy]))
-                probe_resp[j] = _probe_resp[0,:]
+                probe_resp[j] = (
+                    _probe_resp[0] * np.cos(angle) ** 2 +
+                    _probe_resp[1] * np.sin(angle) ** 2
+                )
             # fmt: on
-
+    
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(self.t, "s").to(time_units).m,
+                    x=Q_(self.time, "s").to(time_units).m,
                     y=Q_(np.mean(probe_resp, axis=0), "m").to(displacement_units).m,
                     mode="lines",
                     opacity=1.0,
@@ -1192,7 +813,7 @@ class ST_TimeResponseResults(ST_Results):
             for j, p in enumerate(percentile):
                 fig.add_trace(
                     go.Scatter(
-                        x=Q_(self.t, "s").to(time_units).m,
+                        x=Q_(self.time, "s").to(time_units).m,
                         y=Q_(np.percentile(probe_resp, p, axis=0), "m")
                         .to(displacement_units)
                         .m,
@@ -1205,7 +826,7 @@ class ST_TimeResponseResults(ST_Results):
                     )
                 )
 
-            x = np.concatenate((self.t, self.t[::-1]))
+            x = np.concatenate((self.time, self.time[::-1]))
             for j, p in enumerate(conf_interval):
                 p1 = np.percentile(probe_resp, 50 + p / 2, axis=0)
                 p2 = np.percentile(probe_resp, 50 - p / 2, axis=0)
@@ -1227,51 +848,21 @@ class ST_TimeResponseResults(ST_Results):
 
         fig.update_xaxes(title_text=f"Time ({time_units})")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
-        fig.update_layout(**kwargs)
 
         return fig
+    
 
-    def plot_2d(
-        self,
-        node,
-        percentile=[],
-        conf_interval=[],
-        displacement_units="m",
-        fig=None,
-        **kwargs,
-    ):
-        """Plot orbit response (2D).
 
-        This function plots orbits for a given node on the rotor system in a 2D view.
+    def plot_2d(self,
+                node,
+                percentile=[],
+                conf_interval=[],
+                displacement_units="m",):
+        
 
-        Parameters
-        ----------
-        node : int
-            Select the node to display the respective orbit response.
-        percentile : list, optional
-            Sequence of percentiles to compute, which must be
-            between 0 and 100 inclusive.
-        conf_interval : list, optional
-            Sequence of confidence intervals to compute, which must be
-            between 0 and 100 inclusive.
-        displacement_units : str, optional
-            Displacement units.
-            Default is 'm'.
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
         nodes = self.nodes
         link_nodes = self.link_nodes
-        ndof = self.number_dof
+        ndof = self.ndof
 
         fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
         dofx = ndof * node - fix_dof
@@ -1283,12 +874,14 @@ class ST_TimeResponseResults(ST_Results):
         if fig is None:
             fig = go.Figure()
 
+        fig = go.Figure()
+
         fig.add_trace(
             go.Scatter(
-                x=Q_(np.mean(self.yout[..., dofx], axis=0), "m")
+                x=Q_(np.mean(self.resp_stochTime[1][..., dofx], axis=0), "m")
                 .to(displacement_units)
                 .m,
-                y=Q_(np.mean(self.yout[..., dofy], axis=0), "m")
+                y=Q_(np.mean(self.resp_stochTime[1][..., dofy], axis=0), "m")
                 .to(displacement_units)
                 .m,
                 mode="lines",
@@ -1300,8 +893,8 @@ class ST_TimeResponseResults(ST_Results):
         )
 
         for i, p in enumerate(percentile):
-            p1 = np.percentile(self.yout[..., dofx], p, axis=0)
-            p2 = np.percentile(self.yout[..., dofy], p, axis=0)
+            p1 = np.percentile(self.resp_stochTime[1][..., dofx], p, axis=0)
+            p2 = np.percentile(self.resp_stochTime[1][..., dofy], p, axis=0)
 
             fig.add_trace(
                 go.Scatter(
@@ -1317,10 +910,10 @@ class ST_TimeResponseResults(ST_Results):
             )
 
         for i, p in enumerate(conf_interval):
-            p1 = np.percentile(self.yout[..., dofx], 50 + p / 2, axis=0)
-            p2 = np.percentile(self.yout[..., dofx], 50 - p / 2, axis=0)
-            p3 = np.percentile(self.yout[..., dofy], 50 + p / 2, axis=0)
-            p4 = np.percentile(self.yout[..., dofy], 50 - p / 2, axis=0)
+            p1 = np.percentile(self.resp_stochTime[1][..., dofx], 50 + p / 2, axis=0)
+            p2 = np.percentile(self.resp_stochTime[1][..., dofx], 50 - p / 2, axis=0)
+            p3 = np.percentile(self.resp_stochTime[1][..., dofy], 50 + p / 2, axis=0)
+            p4 = np.percentile(self.resp_stochTime[1][..., dofy], 50 - p / 2, axis=0)
 
             fig.add_trace(
                 go.Scatter(
@@ -1340,64 +933,23 @@ class ST_TimeResponseResults(ST_Results):
         fig.update_xaxes(title_text=f"Amplitude ({displacement_units}) - X direction")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units}) - Y direction")
         fig.update_layout(
-            title=dict(text="Response for node {}".format(node)), **kwargs
+            title=dict(text="Response for node {}".format(node))
         )
-
         return fig
 
-    def plot_3d(
-        self,
-        percentile=[],
-        conf_interval=[],
-        displacement_units="m",
-        rotor_length_units="m",
-        fig=None,
-        **kwargs,
-    ):
-        """Plot orbit response (3D).
 
-        This function plots orbits for each node on the rotor system in a 3D view.
 
-        Parameters
-        ----------
-        percentile : list, optional
-            Sequence of percentiles to compute, which must be
-            between 0 and 100 inclusive.
-        conf_interval : list, optional
-            Sequence of confidence intervals to compute, which must be
-            between 0 and 100 inclusive.
-        displacement_units : str
-            Displacement units.
-            Default is 'm'.
-        rotor_length_units : str
-            Rotor Length units.
-            Default is 'm'.
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. hoverlabel_align="center", ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
-        nodes_pos = self.nodes_pos
-        nodes = self.nodes
-        ndof = self.number_dof
-
-        conf_interval = np.sort(conf_interval)
-        percentile = np.sort(percentile)
-
-        if fig is None:
-            fig = go.Figure()
+    def plot_3d(self,
+                percentile=[],
+                conf_interval=[],
+                displacement_units="m",
+                rotor_length_units="m",):
+        fig = go.Figure()
 
         line = np.zeros(len(self.nodes_pos))
         fig.add_trace(
             go.Scatter3d(
-                x=Q_(nodes_pos, "m").to(rotor_length_units).m,
+                x=Q_(self.nodes_pos, "m").to(rotor_length_units).m,
                 y=line,
                 z=line,
                 mode="lines",
@@ -1405,18 +957,19 @@ class ST_TimeResponseResults(ST_Results):
                 showlegend=False,
             )
         )
-        for j, n in enumerate(nodes):
-            dofx = ndof * n
-            dofy = ndof * n + 1
 
-            x = np.ones(self.yout.shape[1]) * self.nodes_pos[n]
+        for j, n in enumerate(self.nodes):
+            dofx = self.ndof * n
+            dofy = self.ndof * n + 1
+
+            x = np.ones(self.resp_stochTime[1].shape[1]) * self.nodes_pos[n]
             fig.add_trace(
                 go.Scatter3d(
                     x=Q_(x, "m").to(rotor_length_units).m,
-                    y=Q_(np.mean(self.yout[..., dofx], axis=0), "m")
+                    y=Q_(np.mean(self.resp_stochTime[1][..., dofx], axis=0), "m")
                     .to(displacement_units)
                     .m,
-                    z=Q_(np.mean(self.yout[..., dofy], axis=0), "m")
+                    z=Q_(np.mean(self.resp_stochTime[1][..., dofy], axis=0), "m")
                     .to(displacement_units)
                     .m,
                     mode="lines",
@@ -1431,9 +984,10 @@ class ST_TimeResponseResults(ST_Results):
                     ),
                 )
             )
+
             for i, p in enumerate(percentile):
-                p1 = np.percentile(self.yout[..., dofx], p, axis=0)
-                p2 = np.percentile(self.yout[..., dofy], p, axis=0)
+                p1 = np.percentile(self.resp_stochTime[1][..., dofx], p, axis=0)
+                p2 = np.percentile(self.resp_stochTime[1][..., dofy], p, axis=0)
                 fig.add_trace(
                     go.Scatter3d(
                         x=Q_(x, "m").to(rotor_length_units).m,
@@ -1454,10 +1008,10 @@ class ST_TimeResponseResults(ST_Results):
                 )
 
             for i, p in enumerate(conf_interval):
-                p1 = np.percentile(self.yout[..., dofx], 50 + p / 2, axis=0)
-                p2 = np.percentile(self.yout[..., dofx], 50 - p / 2, axis=0)
-                p3 = np.percentile(self.yout[..., dofy], 50 + p / 2, axis=0)
-                p4 = np.percentile(self.yout[..., dofy], 50 - p / 2, axis=0)
+                p1 = np.percentile(self.resp_stochTime[1][..., dofx], 50 + p / 2, axis=0)
+                p2 = np.percentile(self.resp_stochTime[1][..., dofx], 50 - p / 2, axis=0)
+                p3 = np.percentile(self.resp_stochTime[1][..., dofy], 50 + p / 2, axis=0)
+                p4 = np.percentile(self.resp_stochTime[1][..., dofy], 50 - p / 2, axis=0)
                 fig.add_trace(
                     go.Scatter3d(
                         x=Q_(x, "m").to(rotor_length_units).m,
@@ -1509,14 +1063,319 @@ class ST_TimeResponseResults(ST_Results):
                     title=dict(text=f"Amplitude - Y ({displacement_units})"),
                     showspikes=False,
                 ),
-            ),
-            **kwargs,
+            )
         )
+        return fig
+    
+class st_Campbell(ST_Results):
+    """Store stochastic results and provide plots for Campbell Diagram.
+
+    It's possible to visualize multiples harmonics in a single plot to check
+    other speeds which also excite a specific natural frequency.
+    Two options for plooting are available: Matplotlib and Bokeh. The user
+    chooses between them using the attribute plot_type. The default is bokeh
+
+    Parameters
+    ----------
+    speed_range : array
+        Array with the speed range in rad/s.
+    wd : array
+        Array with the damped natural frequencies
+    log_dec : array
+        Array with the Logarithmic decrement
+
+    Returns
+    -------
+    subplots : Plotly graph_objects.make_subplots()
+        Plotly figure with diagrams for frequency and log dec.
+    """
+
+    def __init__(self, speed_range, wd, log_dec):
+        self.speed_range = speed_range
+        self.wd = wd
+        self.log_dec = log_dec
+
+    def plot_nat_freq(
+        self,
+        percentile=[],
+        conf_interval=[],
+        harmonics=[1],
+        frequency_units="rad/s",
+        **kwargs,
+    ):
+        """Plot the damped natural frequencies vs frequency.
+
+        Parameters
+        ----------
+        percentile : list, optional
+            Sequence of percentiles to compute, which must be between
+            0 and 100 inclusive.
+        conf_interval : list, optional
+            Sequence of confidence intervals to compute, which must be between
+            0 and 100 inclusive.
+        harmonics: list, optional
+            List withe the harmonics to be plotted.
+            The default is to plot 1x.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        wd = Q_(self.wd, "rad/s").to(frequency_units).m
+        speed_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
+
+        fig = go.Figure()
+        x = np.concatenate((speed_range, speed_range[::-1]))
+
+        for j, h in enumerate(harmonics):
+            fig.add_trace(
+                go.Scatter(
+                    x=speed_range,
+                    y=speed_range * h,
+                    mode="lines",
+                    name="{}x speed".format(h),
+                    line=dict(width=3, color=colors1[j], dash="dashdot"),
+                    legendgroup="speed{}".format(j),
+                    hovertemplate=("Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"),
+                )
+            )
+
+        for j in range(wd.shape[0]):
+            fig.add_trace(
+                go.Scatter(
+                    x=speed_range,
+                    y=np.mean(wd[j], axis=1),
+                    name="Mean - Mode {}".format(j + 1),
+                    mode="lines",
+                    line=dict(width=3, color=colors1[j]),
+                    legendgroup="mean{}".format(j),
+                    hovertemplate=("Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"),
+                )
+            )
+            for i, p in enumerate(percentile):
+                fig.add_trace(
+                    go.Scatter(
+                        x=speed_range,
+                        y=np.percentile(wd[j], p, axis=1),
+                        opacity=0.6,
+                        mode="lines",
+                        line=dict(width=2.5, color=colors2[j]),
+                        name="percentile: {}%".format(p),
+                        legendgroup="percentile{}{}".format(j, i),
+                        hovertemplate=(
+                            "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
+                        ),
+                    )
+                )
+            for i, p in enumerate(conf_interval):
+                p1 = np.percentile(wd[j], 50 + p / 2, axis=1)
+                p2 = np.percentile(wd[j], 50 - p / 2, axis=1)
+                fig.add_trace(
+                    go.Scatter(
+                        x=x,
+                        y=np.concatenate((p1, p2[::-1])),
+                        mode="lines",
+                        line=dict(width=1, color=colors1[j]),
+                        fill="toself",
+                        fillcolor=colors1[j],
+                        opacity=0.3,
+                        name="confidence interval: {}% - Mode {}".format(p, j + 1),
+                        legendgroup="conf{}{}".format(j, i),
+                        hovertemplate=(
+                            "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
+                        ),
+                    )
+                )
+
+        fig.update_xaxes(
+            title_text=f"Frequency ({frequency_units})",
+            range=[np.min(speed_range), np.max(speed_range)],
+            exponentformat="none",
+        )
+        fig.update_yaxes(
+            title_text=f"Natural Frequencies ({frequency_units})",
+            range=[0, 1.1 * np.max(wd)],
+        )
+        fig.update_layout(**kwargs)
 
         return fig
 
+    def plot_log_dec(
+        self,
+        percentile=[],
+        conf_interval=[],
+        frequency_units="rad/s",
+        **kwargs,
+    ):
+        """Plot the log. decrement vs frequency.
 
-class ST_ForcedResponseResults(ST_Results):
+        Parameters
+        ----------
+        percentile : list, optional
+            Sequence of percentiles to compute, which must be between
+            0 and 100 inclusive.
+        conf_interval : list, optional
+            Sequence of confidence intervals to compute, which must be between
+            0 and 100 inclusive.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
+        speed_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        fig = go.Figure()
+        x = np.concatenate((speed_range, speed_range[::-1]))
+
+        for j in range(self.log_dec.shape[0]):
+            fig.add_trace(
+                go.Scatter(
+                    x=speed_range,
+                    y=np.mean(self.log_dec[j], axis=1),
+                    opacity=1.0,
+                    name="Mean - Mode {}".format(j + 1),
+                    line=dict(width=3, color=colors1[j]),
+                    legendgroup="mean{}".format(j),
+                    hovertemplate=("Frequency: %{x:.3f}<br>" + "Log Dec: %{y:.3f}"),
+                )
+            )
+
+            for i, p in enumerate(percentile):
+                fig.add_trace(
+                    go.Scatter(
+                        x=speed_range,
+                        y=np.percentile(self.log_dec[j], p, axis=1),
+                        opacity=0.6,
+                        line=dict(width=2.5, color=colors2[j]),
+                        name="percentile: {}%".format(p),
+                        legendgroup="percentile{}{}".format(j, i),
+                        hoverinfo="none",
+                    )
+                )
+
+            for i, p in enumerate(conf_interval):
+                p1 = np.percentile(self.log_dec[j], 50 + p / 2, axis=1)
+                p2 = np.percentile(self.log_dec[j], 50 - p / 2, axis=1)
+                fig.add_trace(
+                    go.Scatter(
+                        x=x,
+                        y=np.concatenate((p1, p2[::-1])),
+                        line=dict(width=1, color=colors1[j]),
+                        fill="toself",
+                        fillcolor=colors1[j],
+                        opacity=0.3,
+                        name="confidence interval: {}% - Mode {}".format(p, j + 1),
+                        legendgroup="conf{}{}".format(j, i),
+                        hoverinfo="none",
+                    )
+                )
+
+        fig.update_xaxes(
+            title_text=f"Frequency ({frequency_units})",
+            range=[np.min(speed_range), np.max(speed_range)],
+            exponentformat="none",
+        )
+        fig.update_yaxes(
+            title_text="Logarithmic decrement",
+        )
+        fig.update_layout(**kwargs)
+
+        return fig
+
+    def plot(
+        self,
+        percentile=[],
+        conf_interval=[],
+        harmonics=[1],
+        frequency_units="rad/s",
+        freq_kwargs=None,
+        logdec_kwargs=None,
+        fig_kwargs=None,
+    ):
+        """Plot Campbell Diagram.
+
+        This method plots Campbell Diagram.
+
+        Parameters
+        ----------
+        percentile : list, optional
+            Sequence of percentiles to compute, which must be between
+            0 and 100 inclusive.
+        conf_interval : list, optional
+            Sequence of confidence intervals to compute, which must be between
+            0 and 100 inclusive.
+        harmonics: list, optional
+            List withe the harmonics to be plotted.
+            The default is to plot 1x.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
+        freq_kwargs : dict, optional
+            Additional key word arguments can be passed to change the natural frequency
+            vs frequency plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        logdec_kwargs : dict, optional
+            Additional key word arguments can be passed to change the log. decrement
+            vs frequency plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        fig_kwargs : dict, optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...). This kwargs override "freq_kwargs",
+            "logdec_kwargs" dictionaries.
+            *See Plotly Python make_subplots Reference for more information.
+
+        Returns
+        -------
+        subplots : Plotly graph_objects.make_subplots()
+            Plotly figure with diagrams for frequency and log dec.
+        """
+        freq_kwargs = {} if freq_kwargs is None else copy.copy(freq_kwargs)
+        logdec_kwargs = {} if logdec_kwargs is None else copy.copy(logdec_kwargs)
+        fig_kwargs = {} if fig_kwargs is None else copy.copy(fig_kwargs)
+
+        fig0 = self.plot_nat_freq(
+            percentile, conf_interval, harmonics, frequency_units, **freq_kwargs
+        )
+        fig1 = self.plot_log_dec(
+            percentile, conf_interval, frequency_units, **logdec_kwargs
+        )
+
+        fig = make_subplots(rows=1, cols=2)
+        for data in fig0["data"]:
+            fig.add_trace(data, 1, 1)
+        for data in fig1["data"]:
+            data.showlegend = False
+            fig.add_trace(data, 1, 2)
+
+        fig.update_xaxes(fig0.layout.xaxis, row=1, col=1)
+        fig.update_yaxes(fig0.layout.yaxis, row=1, col=1)
+        fig.update_xaxes(fig1.layout.xaxis, row=1, col=2)
+        fig.update_yaxes(fig1.layout.yaxis, row=1, col=2)
+        fig.update_layout(**fig_kwargs)
+
+        return fig
+    
+class st_Forced(ST_Results):
     """Store stochastic results and provide plots for Forced Response.
 
     Parameters
@@ -1738,30 +1597,14 @@ class ST_ForcedResponseResults(ST_Results):
         color_p = 0
 
         for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
-
+            angle = Q_(p[1], probe_units).to("rad").m
             vector = self._calculate_major_axis_per_node(
-                node=node, angle=angle, amplitude_units=amplitude_units
+                node=p[0], angle=angle, amplitude_units=amplitude_units
             )[:, 1, :]
+            try:
+                probe_tag = p[2]
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             fig.add_trace(
                 go.Scatter(
@@ -1902,33 +1745,18 @@ class ST_ForcedResponseResults(ST_Results):
 
         x = np.concatenate((frequency_range, frequency_range[::-1]))
         for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
-
+            angle = Q_(p[1], probe_units).to("rad").m
             vector = self._calculate_major_axis_per_node(
-                node=node, angle=angle, amplitude_units=amplitude_units
+                node=p[0], angle=angle, amplitude_units=amplitude_units
             )[:, 2, :]
 
             probe_phase = np.real(vector)
             probe_phase = Q_(probe_phase, "rad").to(phase_units).m
+
+            try:
+                probe_tag = p[2]
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             fig.add_trace(
                 go.Scatter(
@@ -2069,36 +1897,22 @@ class ST_ForcedResponseResults(ST_Results):
         color_i = 0
 
         for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+            angle = Q_(p[1], probe_units).to("rad").m
 
             mag = self._calculate_major_axis_per_node(
-                node=node, angle=angle, amplitude_units=amplitude_units
+                node=p[0], angle=angle, amplitude_units=amplitude_units
             )[:, 1, :]
             probe_phase = self._calculate_major_axis_per_node(
-                node=node, angle=angle, amplitude_units=amplitude_units
+                node=p[0], angle=angle, amplitude_units=amplitude_units
             )[:, 2, :]
 
             probe_phase = np.real(probe_phase)
             probe_phase = Q_(probe_phase, "rad").to(phase_units).m
+
+            try:
+                probe_tag = p[2]
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             fig.add_trace(
                 go.Scatterpolar(

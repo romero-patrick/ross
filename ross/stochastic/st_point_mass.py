@@ -4,14 +4,15 @@ This module creates an instance of random point mass for stochastic
 analysis.
 """
 
+import ross
 from ross.point_mass import PointMass
-from ross.stochastic.st_results_elements import plot_histogram
+#from ross.stochastic.st_results_elements import plot_histogram
 from ross.units import check_units
 
 __all__ = ["ST_PointMass", "st_pointmass_example"]
 
 
-class ST_PointMass:
+class ST_PointMass2:
     """Random point mass element.
 
     Creates an object containing a list with random instances of PointMass.
@@ -187,90 +188,16 @@ class ST_PointMass:
         f_list : generator
             Generator of random objects.
         """
-        args_dict = args[0]
         new_args = []
-        for i in range(len(args_dict[is_random[0]])):
+        for i in range(len(self.is_random)):
             arg = []
-            for key, value in args_dict.items():
+            for key, param in self.attribute_dict.items():
                 if key in is_random:
-                    arg.append(value[i])
+                    arg.append(param.value(1)[0])
                 else:
-                    arg.append(value)
+                    arg.append(param)
             new_args.append(arg)
+            
         f_list = (PointMass(*arg) for arg in new_args)
 
         return f_list
-
-    def plot_random_var(self, var_list=None, histogram_kwargs=None, plot_kwargs=None):
-        """Plot histogram and the PDF.
-
-        This function creates a histogram to display the random variable
-        distribution.
-
-        Parameters
-        ----------
-        var_list : list, optional
-            List of random variables, in string format, to plot.
-            Default is plotting all the random variables.
-        histogram_kwargs : dict, optional
-            Additional key word arguments can be passed to change
-            the plotly.go.histogram (e.g. histnorm="probability density", nbinsx=20...).
-            *See Plotly API to more information.
-        plot_kwargs : dict, optional
-            Additional key word arguments can be passed to change the plotly go.figure
-            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...).
-            *See Plotly API to more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            A figure with the histogram plots.
-
-        Examples
-        --------
-        >>> import ross.stochastic as srs
-        >>> elm = srs.st_pointmass_example()
-        >>> fig = elm.plot_random_var(["mx"])
-        >>> # fig.show()
-        """
-        label = dict(
-            mx="Mass on the X direction",
-            my="Mass on the Y direction",
-            m="Mass",
-        )
-        if var_list is None:
-            var_list = self.is_random
-        elif not all(var in self.is_random for var in var_list):
-            raise ValueError(
-                "Random variable not in var_list. Select variables from {}".format(
-                    self.is_random
-                )
-            )
-
-        return plot_histogram(
-            self.attribute_dict, label, var_list, histogram_kwargs={}, plot_kwargs={}
-        )
-
-
-def st_pointmass_example():
-    """Return an instance of a simple random point mass.
-
-    The purpose is to make available a simple model so that doctest can be
-    written using it.
-
-    Returns
-    -------
-    elm : ross.stochastic.ST_PointMass
-        An instance of a random point mass element object.
-
-    Examples
-    --------
-    >>> import ross.stochastic as srs
-    >>> elm = srs.st_pointmass_example()
-    >>> len(list(iter(elm)))
-    2
-    """
-    mx = [2.0, 2.5]
-    my = [3.0, 3.5]
-    elm = ST_PointMass(n=1, mx=mx, my=my, is_random=["mx", "my"])
-    return elm
