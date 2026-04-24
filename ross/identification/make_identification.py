@@ -274,7 +274,7 @@ class make_identification(Rotor):
         
         self.optimized = parameters
         #return parameters
-        return ST_ID_FrequencyResponseResults(freq_resp=results.freq_resp, velc_resp=results.velc_resp, accl_resp=results.accl_resp, speed_range=speed_range, number_dof=rotor.number_dof, data=data, probes=probes, optimum=self.optimized)
+        return ID_FrequencyResponseResults(freq_resp=results.freq_resp, velc_resp=results.velc_resp, accl_resp=results.accl_resp, speed_range=speed_range, number_dof=rotor.number_dof, data=data, probes=probes, optimum=self.optimized)
 
     def obj_freq(self, x, **kwargs):
         """Objective function for frequency identification.
@@ -526,7 +526,7 @@ class make_identification(Rotor):
 
         print(f'prior:{self.prior}')
 
-        return ST_ID_FrequencyResponseResults(results.freq_resp, results.velc_resp, results.accl_resp, speed_range, rotor.number_dof, data = data, probes = probes, optimum = self.optimized, 
+        return ID_FrequencyResponseResults(results.freq_resp, results.velc_resp, results.accl_resp, speed_range, rotor.number_dof, data = data, probes = probes, optimum = self.optimized, 
                                               curves = samples_freqs, best_curve = best_response, distributions = distributions,
                                               MAP_freq_resp = results_MAP.freq_resp,
                                               MAP_velc_resp = results_MAP.velc_resp,
