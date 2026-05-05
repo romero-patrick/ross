@@ -4,15 +4,17 @@ This module creates an instance of random shaft element for stochastic
 analysis.
 """
 
+#import ross
 from ross.shaft_element import ShaftElement
-from ross.stochastic.st_materials import ST_Material
-from ross.stochastic.st_results_elements import plot_histogram
+#from stochastic.st_materials import ST_Material2
 from ross.units import Q_, check_units
+
+from st_materials import ST_Material2
 
 __all__ = ["ST_ShaftElement", "st_shaft_example"]
 
 
-class ST_ShaftElement:
+class ST_ShaftElement2:
     """Random shaft element.
 
     Creates an object containing a generator with random instances of
@@ -112,8 +114,8 @@ class ST_ShaftElement:
             odr = odl
             if "odl" in is_random and "odr" not in is_random:
                 is_random.append("odr")
-        if isinstance(material, ST_Material):
-            material = list(iter(material))
+        if isinstance(material, ST_Material2):
+            material = list(iter(material))[0]
 
         attribute_dict = dict(
             L=L,
@@ -248,102 +250,15 @@ class ST_ShaftElement:
         f_list : generator
             Generator of random objects.
         """
-        args_dict = args[0]
         new_args = []
-        for i in range(len(args_dict[is_random[0]])):
+        for i in range(len(self.is_random)):
             arg = []
-            for key, value in args_dict.items():
+            for key, param in self.attribute_dict.items():
                 if key in is_random:
-                    arg.append(value[i])
+                    arg.append(param.value(1)[0])
                 else:
-                    arg.append(value)
+                    arg.append(param)
             new_args.append(arg)
         f_list = (ShaftElement(*arg) for arg in new_args)
 
         return f_list
-
-    def plot_random_var(self, var_list=None, histogram_kwargs=None, plot_kwargs=None):
-        """Plot histogram and the PDF.
-
-        This function creates a histogram to display the random variable
-        distribution.
-
-        Parameters
-        ----------
-        var_list : list, optional
-            List of random variables, in string format, to plot.
-            Default is plotting all the random variables.
-        histogram_kwargs : dict, optional
-            Additional key word arguments can be passed to change
-            the plotly.go.histogram (e.g. histnorm="probability density", nbinsx=20...).
-            *See Plotly API to more information.
-        plot_kwargs : dict, optional
-            Additional key word arguments can be passed to change the plotly go.figure
-            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...).
-            *See Plotly API to more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            A figure with the histogram plots.
-
-        Examples
-        --------
-        >>> import ross.stochastic as srs
-        >>> elm = srs.st_shaft_example()
-        >>> fig = elm.plot_random_var(["odl"])
-        >>> # fig.show()
-        """
-        label = dict(
-            L="Length",
-            idl="Left inner diameter",
-            odl="Left outer diameter",
-            idr="Right inner diameter",
-            odr="Right outer diameter",
-        )
-        is_random = self.is_random
-        if "material" in is_random:
-            is_random.remove("material")
-
-        if var_list is None:
-            var_list = is_random
-        elif not all(var in is_random for var in var_list):
-            raise ValueError(
-                "Random variable not in var_list. Select variables from {}".format(
-                    is_random
-                )
-            )
-
-        return plot_histogram(
-            self.attribute_dict, label, var_list, histogram_kwargs={}, plot_kwargs={}
-        )
-
-
-def st_shaft_example():
-    """Return an instance of a simple random shaft element.
-
-    The purpose is to make available a simple model so that doctest can be
-    written using it.
-
-    Returns
-    -------
-    elm : ross.stochastic.ST_ShaftElement
-        An instance of a random shaft element object.
-
-    Examples
-    --------
-    >>> import ross.stochastic as srs
-    >>> elm = srs.st_shaft_example()
-    >>> len(list(iter(elm)))
-    2
-    """
-    from ross.materials import steel
-
-    elm = ST_ShaftElement(
-        L=[1.0, 1.1],
-        idl=0.0,
-        odl=[0.1, 0.2],
-        material=steel,
-        is_random=["L", "odl"],
-    )
-    return elm
